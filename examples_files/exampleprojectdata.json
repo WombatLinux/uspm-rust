@@ -1,0 +1,10 @@
+{
+  "version": "1.0.0",
+  "name": "example-package",
+  "description": "Example package",
+  "dependencies": {
+    "uspm": "0.0.1",
+    "os": "1.0.0"
+  },
+  "checksum": "71bcb519aa69bd07aeb3aa7a36724df2"
+}

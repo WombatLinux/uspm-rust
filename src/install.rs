@@ -1,9 +1,9 @@
-use std::fmt::Error;
 use std::fs::File;
-use std::io::{Bytes, Write};
+use std::io::{Write};
 use std::process::Command;
 use crate::config::Config;
 use crate::dephandle::check_dependency;
+use crate::package;
 use crate::package::{PackageFile, Packages};
 use crate::repo::{check_repo_for_package, download_repo_file};
 
@@ -18,7 +18,7 @@ async fn get_package_from_mirror(url: String) -> Result<Vec<u8>, reqwest::Error>
 
 #[tokio::main]
 pub async fn download_package(package: String) -> Result<bool, std::io::Error> {
-    let mut config: Config;
+    let config: Config;
     let mut url: String = "".to_string();
     let config_result = Config::load();
 
@@ -54,7 +54,7 @@ pub async fn download_package(package: String) -> Result<bool, std::io::Error> {
 
     url = url + "/" + &package + ".uspm";
 
-    let mut file_path = config.storage_location().to_string() + "/" + &package + ".uspm";
+    let file_path = config.storage_location().to_string() + "/" + &package + ".uspm";
     let mut file = File::create(file_path)?;
     let package_result = get_package_from_mirror(url).await;
     if package_result.is_err() {
@@ -72,7 +72,7 @@ pub async fn download_package(package: String) -> Result<bool, std::io::Error> {
 }
 
 pub fn install_package(package: String) -> Result<bool, std::io::Error> {
-    let mut config: Config;
+    let config: Config;
     let config_result = Config::load();
 
     // If the config file doesn't exist, create it and use the default config.
@@ -116,6 +116,26 @@ pub fn install_package(package: String) -> Result<bool, std::io::Error> {
     }
 
     let p_file = package_load.unwrap();
+    let mut packages = Packages::new();
+    if packages.load().is_err() {
+        println!("Packages file could not be loaded! Making new packages file");
+        packages.save().expect("Could not save packages file, exiting");
+        return Err(std::io::Error::new(std::io::ErrorKind::Other, "Packages file could not be saved!"))
+    } else {
+        packages.load().unwrap();
+    }
+
+    // see if the package is already installed and if it is, check to see if the version is greater than or equal to the minimum version
+    // if it is, then we don't need to install it
+    // if it isn't, then we need to install it
+    if packages.has_package(package.clone()) {
+        let dled_package_version = p_file.version.clone();
+        let installed_package_version = packages.get_package(package.clone()).unwrap().version.clone();
+        if package::compare_versions(installed_package_version, dled_package_version) >= 0 {
+            println!("Package {} is already installed and is up to date!", package.clone());
+            return Ok(true);
+        }
+    }
 
     // install dependencies
     for dependency in p_file.clone().dependencies {
@@ -140,16 +160,46 @@ pub fn install_package(package: String) -> Result<bool, std::io::Error> {
         .output()
         .expect("failed to execute process");
 
-    // save package to installed packages list
-    let mut packages = Packages::new();
+    if packages.has_package(package.clone()) {
+        packages.replace_package(package.clone(), p_file);
+    } else {
+        packages.add_package(package.clone(), p_file);
+    }
 
+    packages.save().unwrap();
+
+    Ok(true)
+}
+
+pub fn uninstall_package(package: String) -> Result<bool, std::io::Error>{
+    let config: Config;
+    let config_result = Config::load();
+
+    // If the config file doesn't exist, create it and use the default config.
+    if config_result.is_err() {
+        config = Config::default();
+        config.save().expect("Could not save default config")
+    } else {
+        config = config_result.unwrap();
+    }
+
+    let uninstall_script = config.storage_location().to_string() + "/" + &package + "/uninstall.sh";
+    Command::new("sh")
+        .arg(&uninstall_script)
+        .current_dir(&config.storage_location())
+        .output()
+        .expect("failed to execute process");
+
+    let mut packages = Packages::new();
     if packages.load().is_err() {
         println!("Packages file could not be loaded! Making new packages file");
+        packages.save().expect("Could not save packages file, exiting");
+        return Err(std::io::Error::new(std::io::ErrorKind::Other, "Packages file could not be saved!"))
     } else {
         packages.load().unwrap();
     }
 
-    packages.add_package(package.clone(), p_file);
+    packages.remove_package(package.clone());
 
     Ok(true)
 }

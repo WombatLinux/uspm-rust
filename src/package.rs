@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PackageFile {
+    pub name: String,
     pub(crate) version: String,
     pub dependencies: HashMap<String, String>,
     checksum: String,
@@ -15,6 +16,7 @@ pub struct PackageFile {
 impl Clone for PackageFile {
     fn clone(&self) -> Self {
         PackageFile {
+            name: self.name.clone(),
             version: self.version.clone(),
             dependencies: self.dependencies.clone(),
             checksum: self.checksum.clone(),
@@ -37,6 +39,10 @@ impl Packages {
 
     pub fn add_package(&mut self, name: String, package: PackageFile) {
         self.packages.insert(name, package);
+    }
+
+    pub fn get_packages(&self) -> Vec<PackageFile> {
+        self.packages.values().cloned().collect()
     }
 
     pub fn remove_package(&mut self, name: String) {
