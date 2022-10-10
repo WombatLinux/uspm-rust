@@ -27,17 +27,6 @@ impl Config {
     }
   }
 
-  pub fn new(mirrors: Vec<String>, storage_location: String, checksum: bool) -> Self {
-    Config {
-      mirrors,
-      // timeout: timeout,
-      // max_retries: max_retries,
-      // retry_delay: retry_delay,
-      storage_location,
-      checksum
-    }
-  }
-
   pub fn mirrors(&self) -> &Vec<String> {
     &self.mirrors
   }

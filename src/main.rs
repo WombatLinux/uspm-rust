@@ -1,5 +1,6 @@
 use std::env;
 use install::install_package;
+use crate::install::uninstall_package;
 
 mod install;
 mod dephandle;
@@ -33,7 +34,9 @@ async fn main() {
         },
         "remove" => {
             // remove the packages
-            println!("remove");
+            for package in args[2..].iter() {
+                uninstall_package(package.to_string()).expect("Could not install package");
+            }
         },
         "update" => {
             // update the packages
@@ -49,7 +52,7 @@ async fn main() {
         },
         "list" => {
             // list the packages
-            println!("list");
+            list_packages();
         },
         "info" => {
             // info about the packages
@@ -58,6 +61,14 @@ async fn main() {
         "config" => {
             // config the packages
             println!("config");
+        },
+        "help" => {
+            // print help
+            print_help();
+        },
+        "version" => {
+            // print version
+            println!("uspm-rust 0.0.1");
         },
         _ => {
             // print help
@@ -74,3 +85,14 @@ fn print_help() {
     println!("  update");
     println!("  upgrade");
 }
+
+fn list_packages() {
+    // list all packages
+    let mut package_file = package::Packages::new();
+    package_file.load().expect("Could not load packages");
+    for package in package_file.get_packages() {
+        println!("{} {}", package.name, package.version);
+    }
+}
+
+
