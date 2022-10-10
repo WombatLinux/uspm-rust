@@ -38,13 +38,13 @@ async fn main() {
                 uninstall_package(package.to_string()).expect("Could not install package");
             }
         },
-        "update" => {
-            // update the packages
-            println!("update");
-        },
         "upgrade" => {
             // upgrade the packages
-            println!("upgrade");
+            for package in args[2..].iter() {
+                // this basically just tries to install the package again
+                // it won't install if the current version is greater than or equal to the version in the repo
+                install_package(package.to_string()).expect("Could not install package");
+            }
         },
         "search" => {
             // search for the packages
@@ -53,10 +53,6 @@ async fn main() {
         "list" => {
             // list the packages
             list_packages();
-        },
-        "info" => {
-            // info about the packages
-            println!("info");
         },
         "config" => {
             // config the packages
@@ -78,12 +74,16 @@ async fn main() {
 }
 
 fn print_help() {
-    println!("Usage: uspm-rust <command> <package 1> <package 2> <package 3> ...");
+    println!("Usage: uspm-rust <command> [<package 1> <package 2> <package 3> ...]");
     println!("Commands:");
-    println!("  install <package 1> <package 2> <package 3> ...");
-    println!("  remove <package 1> <package 2> <package 3> ...");
-    println!("  update");
+    println!("  install <package 1> [<package 2> <package 3> ...]");
+    println!("  remove <package 1> [<package 2> <package 3> ...]");
     println!("  upgrade");
+    println!("  search");
+    println!("  list");
+    println!("  config");
+    println!("  help");
+    println!("  version");
 }
 
 fn list_packages() {
