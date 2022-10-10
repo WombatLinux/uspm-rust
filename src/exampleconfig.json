@@ -1,0 +1,7 @@
+{
+  "mirrors": [
+    "http://repo.wombatlinux.org",
+    "http://repo.afroraydude.com"
+  ],
+  "storage_location": "/var/uspm/storage"
+}
