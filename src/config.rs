@@ -61,4 +61,8 @@ impl Config {
     let config: Config = serde_json::from_str(&contents)?;
     Ok(config)
   }
+
+  pub fn to_string(&self) -> String {
+    serde_json::to_string_pretty(self).unwrap()
+  }
 }

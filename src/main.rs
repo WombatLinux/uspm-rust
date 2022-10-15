@@ -1,6 +1,8 @@
 use std::env;
 use install::install_package;
+use crate::config::Config;
 use crate::install::uninstall_package;
+use crate::repo::{check_repo_for_package, download_repo_file};
 
 mod install;
 mod dephandle;
@@ -48,15 +50,16 @@ async fn main() {
         },
         "search" => {
             // search for the packages
-            println!("search");
+            for package in args[2..].iter() {
+                search(package.to_string()).await;
+            }
         },
         "list" => {
             // list the packages
             list_packages();
         },
         "config" => {
-            // config the packages
-            println!("config");
+            config();
         },
         "help" => {
             // print help
@@ -69,6 +72,31 @@ async fn main() {
         _ => {
             // print help
             print_help()
+        }
+    }
+}
+
+async fn search(package: String) {
+    // load the config file
+    let config: Config;
+    let config_result = Config::load();
+    if config_result.is_err() {
+        config = Config::default();
+        config.save().expect("Could not save default config")
+    } else {
+        config = config_result.unwrap();
+    }
+
+    for mirror in config.mirrors() {
+        let repo_result = download_repo_file(mirror).await;
+        if repo_result.is_err() {
+            println!("Could not download repo file from {}", mirror);
+            continue;
+        } else {
+            let repo = repo_result.unwrap();
+            if check_repo_for_package(repo, &package) {
+                println!("Found package {} in {}", package, mirror);
+            }
         }
     }
 }
@@ -86,10 +114,32 @@ fn print_help() {
     println!("  version");
 }
 
+fn config() {
+    let config: Config;
+    let config_result = Config::load();
+
+    // If the config file doesn't exist, create it and use the default config.
+    if config_result.is_err() {
+        config = Config::default();
+        config.save().expect("Could not save default config")
+    } else {
+        config = config_result.unwrap();
+    }
+
+    println!("Config:\n{}", config.to_string());
+}
+
 fn list_packages() {
     // list all packages
     let mut package_file = package::Packages::new();
-    package_file.load().expect("Could not load packages");
+    if package_file.load().is_err() {
+        println!("Packages file could not be loaded! Making new packages file");
+        package_file.save().expect("Could not save packages file, exiting");
+        println!("New packages file, no packages installed");
+        return;
+    } else {
+        package_file.load().unwrap();
+    }
     for package in package_file.get_packages() {
         println!("{} {}", package.name, package.version);
     }

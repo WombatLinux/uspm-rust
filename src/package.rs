@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Read, Write};
+use md5::{Md5, Digest};
 
 use serde::{Deserialize, Serialize};
 
@@ -9,7 +10,7 @@ pub struct PackageFile {
     pub name: String,
     pub(crate) version: String,
     pub dependencies: HashMap<String, String>,
-    checksum: String,
+    pub checksum: String,
 }
 
 
@@ -87,6 +88,18 @@ impl PackageFile {
         file.read_to_string(&mut contents)?;
         let package: PackageFile = serde_json::from_str(&contents)?;
         Ok(package)
+    }
+
+    pub fn check_hash(path: String, hash: String) -> bool {
+        let bytes = match std::fs::read(path) {
+            Ok(it) => it,
+            Err(err) => return false
+        };
+        let mut hasher = Md5::new();
+        hasher.update(&bytes);
+        let result = hasher.finalize();
+        let result = format!("{:x}", result);
+        result == hash
     }
 }
 

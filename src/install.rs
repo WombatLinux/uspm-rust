@@ -5,7 +5,7 @@ use crate::config::Config;
 use crate::dephandle::check_dependency;
 use crate::package;
 use crate::package::{PackageFile, Packages};
-use crate::repo::{check_repo_for_package, download_repo_file};
+use crate::repo::{check_repo_for_package, download_repo_file, Repo};
 
 // TODO: Read: https://doc.rust-lang.org/rust-by-example/error/multiple_error_types.html
 // see how to process multiple errors
@@ -30,6 +30,8 @@ pub async fn download_package(package: String) -> Result<bool, std::io::Error> {
         config = config_result.unwrap();
     }
 
+    let repo: Repo;
+
     // attempt to download the package from the first mirror in the config file
     // that has the package
     for mirror in config.mirrors() {
@@ -37,7 +39,7 @@ pub async fn download_package(package: String) -> Result<bool, std::io::Error> {
         if repo_result.is_err() {
             continue;
         } else {
-            let repo = repo_result.unwrap();
+            repo = repo_result.unwrap();
             if check_repo_for_package(repo, &package) {
                 url = mirror.to_string();
             }
@@ -52,21 +54,34 @@ pub async fn download_package(package: String) -> Result<bool, std::io::Error> {
     // download package to storage directory
     // add package file to url
 
-    url = url + "/" + &package + ".uspm";
+    let file_url = url + "/" + &package + ".uspm";
 
     let file_path = config.storage_location().to_string() + "/" + &package + ".uspm";
     let mut file = File::create(file_path)?;
-    let package_result = get_package_from_mirror(url).await;
+    let package_result = get_package_from_mirror(file_url).await;
     if package_result.is_err() {
         return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "Package not found"));
     }
 
-    let package = package_result.unwrap();
+    let package_result_u8 = package_result.unwrap();
 
     // convert vector to &[u8]
-    let package_slice = &package[..];
+    let package_slice = &package_result_u8[..];
 
     file.write_all(package_slice)?;
+
+    // verify package integrity
+    
+    // get the checksum from the repo file
+    let package_file = repo.get_package(package.clone()).unwrap();
+    let checksum = package_file.checksum;
+
+    // check hash
+    let hash_result = PackageFile::check_hash(file_path, checksum);
+
+    if !hash_result {
+        return Err(std::io::Error::new(std::io::ErrorKind::Other, "Package hash does not match"));
+    }
 
     Ok(true)
 }
@@ -90,6 +105,11 @@ pub fn install_package(package: String) -> Result<bool, std::io::Error> {
         let download_result = download_package(package.clone());
         if download_result.is_err() {
             return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "Package not found"));
+        } else {
+            let download_result = download_result.unwrap();
+            if !download_result {
+                return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "Package not found"));
+            }
         }
     }
 
@@ -105,6 +125,7 @@ pub fn install_package(package: String) -> Result<bool, std::io::Error> {
         .current_dir(&config.storage_location())
         .output()
         .expect("failed to execute process");
+
     // check package.json for dependencies by going to the package directory
     // and reading the package.json file
     let package_json = config.storage_location().to_string() + "/" + &package + "/package.json";
@@ -112,7 +133,7 @@ pub fn install_package(package: String) -> Result<bool, std::io::Error> {
 
     if package_load.is_err() {
         // crash
-        panic!("Package files issue! Please delete offending files and try again")
+        panic!("Package issue! Please delete offending files and try again.")
     }
 
     let p_file = package_load.unwrap();
@@ -154,11 +175,13 @@ pub fn install_package(package: String) -> Result<bool, std::io::Error> {
 
     // run install script
     let install_script = config.storage_location().to_string() + "/" + &package + "/install.sh";
-    Command::new("sh")
+    let install_command = Command::new("sh")
         .arg(&install_script)
         .current_dir(&config.storage_location())
-        .output()
-        .expect("failed to execute process");
+        .output();
+    if install_command.is_err() {
+        return Err(std::io::Error::new(std::io::ErrorKind::Other, "Install script failed!"));
+    }
 
     if packages.has_package(package.clone()) {
         packages.replace_package(package.clone(), p_file);
