@@ -30,8 +30,6 @@ pub async fn download_package(package: String) -> Result<bool, std::io::Error> {
         config = config_result.unwrap();
     }
 
-    let repo: Repo;
-
     // attempt to download the package from the first mirror in the config file
     // that has the package
     for mirror in config.mirrors() {
@@ -39,7 +37,7 @@ pub async fn download_package(package: String) -> Result<bool, std::io::Error> {
         if repo_result.is_err() {
             continue;
         } else {
-            repo = repo_result.unwrap();
+            let repo = repo_result.unwrap().clone();
             if check_repo_for_package(repo, &package) {
                 url = mirror.to_string();
             }
@@ -54,10 +52,10 @@ pub async fn download_package(package: String) -> Result<bool, std::io::Error> {
     // download package to storage directory
     // add package file to url
 
-    let file_url = url + "/" + &package + ".uspm";
+    let file_url = url.clone() + "/" + &package + ".uspm";
 
-    let file_path = config.storage_location().to_string() + "/" + &package + ".uspm";
-    let mut file = File::create(file_path)?;
+    let file_path: String = config.storage_location().to_string() + "/" + &package + ".uspm";
+    let mut file = File::create(file_path.clone())?;
     let package_result = get_package_from_mirror(file_url).await;
     if package_result.is_err() {
         return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "Package not found"));
@@ -71,10 +69,18 @@ pub async fn download_package(package: String) -> Result<bool, std::io::Error> {
     file.write_all(package_slice)?;
 
     // verify package integrity
+
+    // get the repo file from the mirror
+    let repo_result = download_repo_file(&url).await;
+    if repo_result.is_err() {
+        return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "Package not found"));
+    }
+
+    let repo = repo_result.unwrap();
     
     // get the checksum from the repo file
     let package_file = repo.get_package(package.clone()).unwrap();
-    let checksum = package_file.checksum;
+    let checksum = package_file.checksum.clone();
 
     // check hash
     let hash_result = PackageFile::check_hash(file_path, checksum);

@@ -1,0 +1,12 @@
+{
+  "packages": {
+    "test": {
+      "name": "test",
+      "version": "0.0.0",
+      "dependencies": {
+        "uspm": "1.0.0"
+      },
+      "checksum": ""
+    }
+  }
+}

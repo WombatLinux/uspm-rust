@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Read, Write};
-use md5::{Md5, Digest};
+use md5::{Digest};
 
+use serde::__private::de;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -91,15 +92,18 @@ impl PackageFile {
     }
 
     pub fn check_hash(path: String, hash: String) -> bool {
-        let bytes = match std::fs::read(path) {
-            Ok(it) => it,
-            Err(err) => return false
-        };
-        let mut hasher = Md5::new();
-        hasher.update(&bytes);
-        let result = hasher.finalize();
-        let result = format!("{:x}", result);
-        result == hash
+        false
+    }
+
+    pub fn default() -> Self {
+        let mut dependencies = HashMap::new();
+        dependencies.insert("uspm".to_string(), "1.0.0".to_string());
+        PackageFile {
+            name: "test".to_string(),
+            version: "0.0.0".to_string(),
+            dependencies: dependencies,
+            checksum: "".to_string(),
+        }
     }
 }
 
