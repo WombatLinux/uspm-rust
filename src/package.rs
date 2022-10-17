@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Read, Write};
-use md5::{Digest};
+use md5;
 
 use serde::__private::de;
 use serde::{Deserialize, Serialize};

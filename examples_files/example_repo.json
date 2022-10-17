@@ -2,11 +2,12 @@
   "packages": {
     "test": {
       "name": "test",
-      "version": "0.0.0",
+      "version": "1.0.0",
       "dependencies": {
-        "uspm": "1.0.0"
+        "uspm": "1.0.0",
+        "os": "1.0.0"
       },
-      "checksum": ""
+      "checksum": "71bcb519aa69bd07aeb3aa7a36724df2"
     }
   }
 }
