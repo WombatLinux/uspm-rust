@@ -92,7 +92,10 @@ impl PackageFile {
     }
 
     pub fn check_hash(path: String, hash: String) -> bool {
-        false
+        let bytes = std::fs::read(path).unwrap();
+        let digest = md5::compute(bytes);
+        let hex = format!("{:x}", digest);
+        hex == hash
     }
 
     pub fn default() -> Self {
@@ -104,6 +107,34 @@ impl PackageFile {
             dependencies: dependencies,
             checksum: "".to_string(),
         }
+    }
+
+    pub fn check(&self) -> bool {
+        // check if name is empty
+        if self.name.is_empty() {
+            return false;
+        }
+        // check if version is empty
+        if self.version.is_empty() {
+            return false;
+        }
+        // check if any of the values in dependencies are empty
+        for (key, value) in self.dependencies.iter() {
+            if key.is_empty() || value.is_empty() {
+                return false;
+            }
+
+            // check if value doesn't match valid version format (#.#.#) using regex
+            let re = Regex::new(r"^\d+\.\d+\.\d+$").unwrap();
+            if !re.is_match(value) {
+                return false;
+            }
+        }
+        // check if checksum is empty
+        if !self.checksum.is_empty() && self.checksum.as_str() != "leave_blank_in_package_file" {
+            return false;
+        }
+        true
     }
 }
 
